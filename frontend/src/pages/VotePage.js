@@ -24,6 +24,7 @@ export default function VotePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState(false);
+  const [participants, setParticipants] = useState(0);
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -50,6 +51,9 @@ export default function VotePage() {
     socket.on('vote:update', ({ results: r, totalVotes: t }) => {
       setResults(r);
       setTotalVotes(t);
+    });
+    socket.on('participants:update', ({ count }) => {
+      setParticipants(count);
     });
 
     return () => {
@@ -102,6 +106,12 @@ export default function VotePage() {
           <span className={`badge badge-${poll.status.toLowerCase()}`}>{poll.status}</span>
           {connected && (
             <span className="live-badge"><span className="live-dot" /> Live</span>
+          )}
+          {connected && participants > 0 && (
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              {participants} watching
+            </span>
           )}
         </div>
         <h1 className="page-title">{poll.title}</h1>

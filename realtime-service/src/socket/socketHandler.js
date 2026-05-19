@@ -34,24 +34,42 @@ function setupSocketServer(httpServer) {
     }
   });
 
+  function getRoomSize(room) {
+    return io.sockets.adapter.rooms.get(room)?.size || 0;
+  }
+
+  function broadcastParticipants(room, pollId) {
+    const count = getRoomSize(room);
+    io.to(room).emit('participants:update', { pollId, count });
+  }
+
   io.on('connection', (socket) => {
     console.log(`[Socket.IO] Client connected: ${socket.id}`);
 
     socket.on('join:poll', (pollId) => {
       const room = `poll:${pollId}`;
       socket.join(room);
-      console.log(`[Socket.IO] ${socket.id} joined room ${room}`);
+      socket.data.pollId = pollId;
+      console.log(`[Socket.IO] ${socket.id} joined room ${room} (${getRoomSize(room)} viewers)`);
       socket.emit('joined', { pollId, room });
+      broadcastParticipants(room, pollId);
     });
 
     socket.on('leave:poll', (pollId) => {
       const room = `poll:${pollId}`;
       socket.leave(room);
+      socket.data.pollId = null;
       console.log(`[Socket.IO] ${socket.id} left room ${room}`);
+      broadcastParticipants(room, pollId);
     });
 
     socket.on('disconnect', (reason) => {
       console.log(`[Socket.IO] Client disconnected: ${socket.id} (${reason})`);
+      const pollId = socket.data.pollId;
+      if (pollId) {
+        // broadcast after socket is removed from room
+        setImmediate(() => broadcastParticipants(`poll:${pollId}`, pollId));
+      }
     });
 
     socket.on('error', (err) => {
