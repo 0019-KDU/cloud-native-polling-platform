@@ -144,6 +144,7 @@ export default function AdminDashboard() {
                       {actionLoading === poll.id ? '...' : action.label}
                     </button>
                   )}
+                  <Link to={`/analytics/${poll.id}`} className="btn btn-outline btn-sm">Analytics</Link>
                   <button
                     className="btn btn-sm btn-outline"
                     style={{ marginLeft: 'auto', color: 'var(--danger)', borderColor: 'var(--danger)' }}

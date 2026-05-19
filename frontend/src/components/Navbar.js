@@ -19,6 +19,7 @@ export default function Navbar() {
         </Link>
         <div className="navbar-links">
           <Link to="/" className="btn btn-outline btn-sm">Polls</Link>
+          <Link to="/analytics" className="btn btn-outline btn-sm">Analytics</Link>
           {user ? (
             <>
               <Link to="/admin" className="btn btn-outline btn-sm">Dashboard</Link>

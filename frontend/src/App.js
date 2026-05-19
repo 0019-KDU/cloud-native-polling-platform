@@ -8,6 +8,7 @@ import PollList from './pages/PollList';
 import VotePage from './pages/VotePage';
 import AdminDashboard from './pages/AdminDashboard';
 import Analytics from './pages/Analytics';
+import PlatformAnalytics from './pages/PlatformAnalytics';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/" element={<PollList />} />
           <Route path="/login" element={<Login />} />
           <Route path="/poll/:id" element={<VotePage />} />
+          <Route path="/analytics" element={<PlatformAnalytics />} />
           <Route path="/analytics/:id" element={<Analytics />} />
           <Route
             path="/admin"
