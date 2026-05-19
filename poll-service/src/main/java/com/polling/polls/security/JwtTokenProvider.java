@@ -17,12 +17,19 @@ public class JwtTokenProvider {
     private String jwtSecret;
 
     public String getUsernameFromToken(String token) {
+        return getClaims(token).getSubject();
+    }
+
+    public String getRoleFromToken(String token) {
+        return getClaims(token).get("role", String.class);
+    }
+
+    private io.jsonwebtoken.Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+                .getBody();
     }
 
     public boolean validateToken(String token) {

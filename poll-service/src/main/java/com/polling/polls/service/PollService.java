@@ -81,10 +81,10 @@ public class PollService {
     }
 
     @Transactional
-    public void deletePoll(Long id) {
+    public void deletePoll(Long id, String username) {
         Poll poll = getPollEntity(id);
         pollRepository.delete(poll);
-        log.info("Poll deleted: id={}", id);
+        log.info("Poll deleted: id={} by={}", id, username);
     }
 
     private Poll getPollEntity(Long id) {

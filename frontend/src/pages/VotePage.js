@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { pollApi, voteApi } from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -10,6 +11,8 @@ const REALTIME_URL = process.env.REACT_APP_REALTIME_SERVICE_URL || 'http://local
 export default function VotePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ROLE_ADMIN';
   const pollId = parseInt(id, 10);
 
   const [poll, setPoll] = useState(null);
@@ -108,7 +111,11 @@ export default function VotePage() {
 
         {error && <div className="alert alert-error">{error}</div>}
 
-        {!hasVoted && poll.status === 'ACTIVE' ? (
+        {isAdmin ? (
+          <div className="alert" style={{ marginBottom: '1.5rem', background: 'var(--bg-secondary)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+            Admins cannot vote on polls. You can view live results below.
+          </div>
+        ) : !hasVoted && poll.status === 'ACTIVE' ? (
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <h3 style={{ marginBottom: '1rem', fontWeight: 600 }}>Cast Your Vote</h3>
             {poll.options.map(opt => (
