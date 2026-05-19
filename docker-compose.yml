@@ -1,0 +1,166 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: polling-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-polluser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pollpass}
+      POSTGRES_DB: ${POSTGRES_DB:-pollingdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-polluser} -d ${POSTGRES_DB:-pollingdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - polling-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: polling-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redispass}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - polling-network
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: polling-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pollingdb}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-polluser}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-pollpass}
+      JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-change-in-production-minimum-256-bits}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - polling-network
+    restart: unless-stopped
+
+  poll-service:
+    build:
+      context: ./poll-service
+      dockerfile: Dockerfile
+    container_name: polling-poll-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pollingdb}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-polluser}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-pollpass}
+      JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-change-in-production-minimum-256-bits}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - polling-network
+    restart: unless-stopped
+
+  vote-service:
+    build:
+      context: ./vote-service
+      dockerfile: Dockerfile
+    container_name: polling-vote-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pollingdb}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-polluser}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-pollpass}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:-redispass}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - polling-network
+    restart: unless-stopped
+
+  analytics-service:
+    build:
+      context: ./analytics-service
+      dockerfile: Dockerfile
+    container_name: polling-analytics-service
+    ports:
+      - "8084:8084"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-polluser}:${POSTGRES_PASSWORD:-pollpass}@postgres:5432/${POSTGRES_DB:-pollingdb}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - polling-network
+    restart: unless-stopped
+
+  realtime-service:
+    build:
+      context: ./realtime-service
+      dockerfile: Dockerfile
+    container_name: polling-realtime-service
+    ports:
+      - "3001:3001"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redispass}
+      PORT: 3001
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - polling-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: polling-frontend
+    ports:
+      - "3000:80"
+    environment:
+      REACT_APP_AUTH_SERVICE_URL: ${REACT_APP_AUTH_SERVICE_URL:-http://localhost:8081}
+      REACT_APP_POLL_SERVICE_URL: ${REACT_APP_POLL_SERVICE_URL:-http://localhost:8082}
+      REACT_APP_VOTE_SERVICE_URL: ${REACT_APP_VOTE_SERVICE_URL:-http://localhost:8083}
+      REACT_APP_ANALYTICS_SERVICE_URL: ${REACT_APP_ANALYTICS_SERVICE_URL:-http://localhost:8084}
+      REACT_APP_REALTIME_SERVICE_URL: ${REACT_APP_REALTIME_SERVICE_URL:-http://localhost:3001}
+    depends_on:
+      - auth-service
+      - poll-service
+      - vote-service
+      - analytics-service
+      - realtime-service
+    networks:
+      - polling-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  polling-network:
+    driver: bridge
