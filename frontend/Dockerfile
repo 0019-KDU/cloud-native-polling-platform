@@ -4,7 +4,7 @@ LABEL org.opencontainers.image.title="frontend" \
       org.opencontainers.image.version="1.0.0"
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm install --legacy-peer-deps
 COPY . .
 
 ARG REACT_APP_AUTH_SERVICE_URL
