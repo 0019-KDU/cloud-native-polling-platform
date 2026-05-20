@@ -1,0 +1,144 @@
+# HTTP → HTTPS redirect
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: http-redirect
+  namespace: polling-platform
+spec:
+  parentRefs:
+    - name: polling-gateway
+      sectionName: http
+  hostnames:
+    - "yourdomain.com"                        # Replace with your domain
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+# auth-service: /api/auth/*
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: auth-route
+  namespace: polling-platform
+spec:
+  parentRefs:
+    - name: polling-gateway
+      sectionName: https
+  hostnames:
+    - "yourdomain.com"                        # Replace with your domain
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/auth
+      backendRefs:
+        - name: auth-service-svc
+          port: 8081
+---
+# poll-service: /api/polls/*
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: poll-route
+  namespace: polling-platform
+spec:
+  parentRefs:
+    - name: polling-gateway
+      sectionName: https
+  hostnames:
+    - "yourdomain.com"                        # Replace with your domain
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/polls
+      backendRefs:
+        - name: poll-service-svc
+          port: 8082
+---
+# vote-service: /api/votes/*
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vote-route
+  namespace: polling-platform
+spec:
+  parentRefs:
+    - name: polling-gateway
+      sectionName: https
+  hostnames:
+    - "yourdomain.com"                        # Replace with your domain
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/votes
+      backendRefs:
+        - name: vote-service-svc
+          port: 8083
+---
+# analytics-service: /api/analytics/*
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: analytics-route
+  namespace: polling-platform
+spec:
+  parentRefs:
+    - name: polling-gateway
+      sectionName: https
+  hostnames:
+    - "yourdomain.com"                        # Replace with your domain
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/analytics
+      backendRefs:
+        - name: analytics-service-svc
+          port: 8084
+---
+# realtime-service: /socket.io/* (WebSocket)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: realtime-route
+  namespace: polling-platform
+spec:
+  parentRefs:
+    - name: polling-gateway
+      sectionName: https
+  hostnames:
+    - "yourdomain.com"                        # Replace with your domain
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /socket.io
+      backendRefs:
+        - name: realtime-service-svc
+          port: 3001
+---
+# frontend: /* (catch-all, lowest priority)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: frontend-route
+  namespace: polling-platform
+spec:
+  parentRefs:
+    - name: polling-gateway
+      sectionName: https
+  hostnames:
+    - "yourdomain.com"                        # Replace with your domain
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: frontend-svc
+          port: 80

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polling-config
+  namespace: polling-platform
+data:
+  # PostgreSQL
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-svc:5432/pollingdb"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  POSTGRES_DB: "pollingdb"
+  POSTGRES_USER: "postgres"
+
+  # Redis
+  SPRING_REDIS_HOST: "redis-svc"
+  SPRING_REDIS_PORT: "6379"
+
+  # Analytics DB config
+  DB_HOST: "postgres-svc"
+  DB_PORT: "5432"
+  DB_NAME: "pollingdb"
+  DB_USER: "postgres"
+
+  # Realtime
+  REDIS_HOST: "redis-svc"
+  REDIS_PORT: "6379"
+
+  # JWT expiration (24h in ms)
+  JWT_EXPIRATION: "86400000"
