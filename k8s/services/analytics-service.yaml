@@ -19,7 +19,7 @@ spec:
         - name: acr-secret
       containers:
         - name: analytics-service
-          image: chiradev.azurecr.io/analytics-service-app:v1.0.0
+          image: chiradev.azurecr.io/analytics-service-app:2
           ports:
             - containerPort: 8084
           env:
