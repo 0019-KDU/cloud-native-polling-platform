@@ -19,7 +19,7 @@ spec:
         - name: acr-secret
       containers:
         - name: auth-service
-          image: <ACR_LOGIN_SERVER>/auth-service:latest
+          image: chiradev.azurecr.io/auth-service:v1.0.0
           ports:
             - containerPort: 8081
           env:
