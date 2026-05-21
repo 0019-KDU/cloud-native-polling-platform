@@ -10,6 +10,7 @@ variables:
   dockerRegistryServiceConnection: 'fe957fe3-0ff3-428c-b25c-feeeafd8ac46'
   imageRepository: 'analytics-service-app'
   containerRegistry: 'chiradev.azurecr.io'
+  k8sFile: 'k8s/services/analytics-service.yaml'
   tag: '$(Build.BuildId)'
 
 pool:
@@ -45,3 +46,25 @@ stages:
               repository: '$(imageRepository)'
               command: 'push'
               tags: '$(tag)'
+
+  - stage: UpdateManifest
+    displayName: Update K8s Manifest
+    dependsOn: Push
+    jobs:
+      - job: UpdateManifest
+        displayName: Update image tag in k8s manifest
+        steps:
+          - checkout: self
+            persistCredentials: true
+
+          - script: |
+              git config user.email "azuredevops@pollstream.com"
+              git config user.name "Azure DevOps CI"
+              git fetch origin
+              git checkout main
+              git pull origin main
+              sed -i "s|image: $(containerRegistry)/$(imageRepository):.*|image: $(containerRegistry)/$(imageRepository):$(tag)|g" $(k8sFile)
+              git add $(k8sFile)
+              git diff --staged --quiet || git commit -m "ci: update $(imageRepository) image tag to $(tag) [skip ci]"
+              git push origin main
+            displayName: Update manifest and push
