@@ -1,0 +1,47 @@
+trigger:
+  paths:
+    include:
+      - vote-service/*
+
+resources:
+  - repo: self
+
+variables:
+  dockerRegistryServiceConnection: 'fe957fe3-0ff3-428c-b25c-feeeafd8ac46'
+  imageRepository: 'vote-service'
+  containerRegistry: 'chiradev.azurecr.io'
+  tag: '$(Build.BuildId)'
+
+pool:
+  name: 'azureagent'
+
+stages:
+  - stage: Build
+    displayName: Build stage
+    jobs:
+      - job: Build
+        displayName: Build
+        steps:
+          - task: Docker@2
+            displayName: Build image
+            inputs:
+              containerRegistry: '$(dockerRegistryServiceConnection)'
+              repository: '$(imageRepository)'
+              command: 'build'
+              Dockerfile: 'vote-service/Dockerfile'
+              tags: '$(tag)'
+
+  - stage: Push
+    displayName: Push stage
+    dependsOn: Build
+    jobs:
+      - job: Push
+        displayName: Push
+        steps:
+          - task: Docker@2
+            displayName: Push image to ACR
+            inputs:
+              containerRegistry: '$(dockerRegistryServiceConnection)'
+              repository: '$(imageRepository)'
+              command: 'push'
+              tags: '$(tag)'
