@@ -376,6 +376,53 @@ If a bad deployment is released, ArgoCD lets you roll back to any previous Git c
 
 ![AKS Resource Visualizer](docs/az-k8s-resouces-visulizer.png)
 
+### Live Cluster State
+
+```
+$ kubectl get all -n polling-platform
+
+NAME                                         READY   STATUS    RESTARTS   AGE
+pod/analytics-service-7b9c969f7d-whtnh       1/1     Running   0          91m
+pod/auth-service-645df6d866-7fm7g            1/1     Running   0          2m5s
+pod/auth-service-645df6d866-cqbnt            1/1     Running   0          3m
+pod/frontend-75df75b87f-jfq66                1/1     Running   0          10m
+pod/frontend-75df75b87f-rbd4j                1/1     Running   0          10m
+pod/poll-service-d4d94c9bb-hdqdp             1/1     Running   0          132m
+pod/poll-service-d4d94c9bb-mg5qz             1/1     Running   0          131m
+pod/polling-gateway-nginx-6946c84d45-whm6l   0/1     Running   0          156m
+pod/polling-gateway-nginx-fbfdc9f46-sqfd9    0/1     Running   0          161m
+pod/postgres-0                               1/1     Running   0          133m
+pod/realtime-service-869d655f4f-pg6wk        1/1     Running   0          156m
+pod/realtime-service-869d655f4f-srv77        1/1     Running   0          130m
+pod/redis-6854fd6dc8-kj752                   1/1     Running   0          156m
+pod/vote-service-6b89f86475-8wzps            1/1     Running   0          130m
+pod/vote-service-6b89f86475-zbbzk            1/1     Running   0          132m
+
+NAME                            TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
+service/analytics-service-svc   ClusterIP      10.0.166.36    <none>         8084/TCP       161m
+service/auth-service-svc        ClusterIP      10.0.190.205   <none>         8081/TCP       161m
+service/frontend-svc            ClusterIP      10.0.61.196    <none>         80/TCP         161m
+service/poll-service-svc        ClusterIP      10.0.176.49    <none>         8082/TCP       161m
+service/polling-gateway-nginx   LoadBalancer   10.0.214.141   4.187.142.0    80:30979/TCP   161m
+service/postgres-svc            ClusterIP      None           <none>         5432/TCP       161m
+service/realtime-service-svc    ClusterIP      10.0.57.181    <none>         3001/TCP       161m
+service/redis-svc               ClusterIP      10.0.30.254    <none>         6379/TCP       161m
+service/vote-service-svc        ClusterIP      10.0.250.26    <none>         8083/TCP       161m
+
+NAME                                    READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/analytics-service       1/1     1            1           161m
+deployment.apps/auth-service            2/2     2            2           161m
+deployment.apps/frontend                2/2     2            2           161m
+deployment.apps/poll-service            2/2     2            2           161m
+deployment.apps/polling-gateway-nginx   0/1     1            0           161m
+deployment.apps/realtime-service        2/2     2            2           161m
+deployment.apps/redis                   1/1     1            1           161m
+deployment.apps/vote-service            2/2     2            2           161m
+
+NAME                        READY   AGE
+statefulset.apps/postgres   1/1     161m
+```
+
 ### Workloads
 
 | Workload | Kind | Replicas |
