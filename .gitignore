@@ -38,6 +38,7 @@ frontend/build/
 .vscode/
 *.swp
 *.swo
+.claude/
 
 # OS
 .DS_Store

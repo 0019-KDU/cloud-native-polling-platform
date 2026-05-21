@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(Get-ChildItem -Directory | ForEach-Object { Write-Host \"=== $\\($_.Name\\) ===\" ; Get-ChildItem -Path $_.FullName -Depth 1 -File | Select-Object Name })",
-      "Bash(kubectl patch *)",
-      "Bash(argocd version *)"
-    ]
-  }
-}
