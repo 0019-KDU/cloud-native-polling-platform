@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const AUTH_URL   = process.env.REACT_APP_AUTH_SERVICE_URL   || 'http://localhost:8081';
-const POLL_URL   = process.env.REACT_APP_POLL_SERVICE_URL   || 'http://localhost:8082';
-const VOTE_URL   = process.env.REACT_APP_VOTE_SERVICE_URL   || 'http://localhost:8083';
-const ANALYTICS_URL = process.env.REACT_APP_ANALYTICS_SERVICE_URL || 'http://localhost:8084';
+const AUTH_URL      = process.env.REACT_APP_AUTH_SERVICE_URL      || '';
+const POLL_URL      = process.env.REACT_APP_POLL_SERVICE_URL      || '';
+const VOTE_URL      = process.env.REACT_APP_VOTE_SERVICE_URL      || '';
+const ANALYTICS_URL = process.env.REACT_APP_ANALYTICS_SERVICE_URL || '';
 
 function createClient(baseURL) {
   const client = axios.create({ baseURL });
