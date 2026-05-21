@@ -19,7 +19,7 @@ spec:
         - name: acr-secret
       containers:
         - name: frontend
-          image: chiradev.azurecr.io/frontend:16
+          image: chiradev.azurecr.io/frontend:17
           ports:
             - containerPort: 80
           resources:
