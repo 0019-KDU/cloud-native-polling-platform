@@ -1,0 +1,345 @@
+C:\Windows\System32>kubectl get all pods -n polling-platfrom
+error: you must specify only one resource
+
+C:\Windows\System32>kubectl get all -n polling-platform
+NAME                                         READY   STATUS    RESTARTS   AGE
+pod/analytics-service-7b9c969f7d-whtnh       1/1     Running   0          91m
+pod/auth-service-645df6d866-7fm7g            1/1     Running   0          2m5s
+pod/auth-service-645df6d866-cqbnt            1/1     Running   0          3m
+pod/frontend-75df75b87f-jfq66                1/1     Running   0          10m
+pod/frontend-75df75b87f-rbd4j                1/1     Running   0          10m
+pod/poll-service-d4d94c9bb-hdqdp             1/1     Running   0          132m
+pod/poll-service-d4d94c9bb-mg5qz             1/1     Running   0          131m
+pod/polling-gateway-nginx-6946c84d45-whm6l   0/1     Running   0          156m
+pod/polling-gateway-nginx-fbfdc9f46-sqfd9    0/1     Running   0          161m
+pod/postgres-0                               1/1     Running   0          133m
+pod/realtime-service-869d655f4f-pg6wk        1/1     Running   0          156m
+pod/realtime-service-869d655f4f-srv77        1/1     Running   0          130m
+pod/redis-6854fd6dc8-kj752                   1/1     Running   0          156m
+pod/vote-service-6b89f86475-8wzps            1/1     Running   0          130m
+pod/vote-service-6b89f86475-zbbzk            1/1     Running   0          132m
+
+NAME                            TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)        AGE
+service/analytics-service-svc   ClusterIP      10.0.166.36    <none>          8084/TCP       161m
+service/auth-service-svc        ClusterIP      10.0.190.205   <none>          8081/TCP       161m
+service/frontend-svc            ClusterIP      10.0.61.196    <none>          80/TCP         161m
+service/poll-service-svc        ClusterIP      10.0.176.49    <none>          8082/TCP       161m
+service/polling-gateway-nginx   LoadBalancer   10.0.214.141   98.70.237.188   80:30979/TCP   161m
+service/postgres-svc            ClusterIP      None           <none>          5432/TCP       161m
+service/realtime-service-svc    ClusterIP      10.0.57.181    <none>          3001/TCP       161m
+service/redis-svc               ClusterIP      10.0.30.254    <none>          6379/TCP       161m
+service/vote-service-svc        ClusterIP      10.0.250.26    <none>          8083/TCP       161m
+
+NAME                                    READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/analytics-service       1/1     1            1           161m
+deployment.apps/auth-service            2/2     2            2           161m
+deployment.apps/frontend                2/2     2            2           161m
+deployment.apps/poll-service            2/2     2            2           161m
+deployment.apps/polling-gateway-nginx   0/1     1            0           161m
+deployment.apps/realtime-service        2/2     2            2           161m
+deployment.apps/redis                   1/1     1            1           161m
+deployment.apps/vote-service            2/2     2            2           161m
+
+NAME                                               DESIRED   CURRENT   READY   AGE
+replicaset.apps/analytics-service-65dc8cb58b       0         0         0       126m
+replicaset.apps/analytics-service-7589856847       0         0         0       132m
+replicaset.apps/analytics-service-76567b97b9       0         0         0       156m
+replicaset.apps/analytics-service-7669b8968c       0         0         0       161m
+replicaset.apps/analytics-service-7b9c969f7d       1         1         1       97m
+replicaset.apps/analytics-service-bc555c4f5        0         0         0       128m
+replicaset.apps/auth-service-645df6d866            2         2         2       3m1s
+replicaset.apps/auth-service-656d679bb             0         0         0       161m
+replicaset.apps/auth-service-85c779cfbb            0         0         0       132m
+replicaset.apps/auth-service-85fcc598b4            0         0         0       156m
+replicaset.apps/frontend-5b667875                  0         0         0       161m
+replicaset.apps/frontend-5cc65667c4                0         0         0       69m
+replicaset.apps/frontend-75df75b87f                2         2         2       10m
+replicaset.apps/frontend-f4dbd5d9c                 0         0         0       156m
+replicaset.apps/poll-service-6f7878b456            0         0         0       156m
+replicaset.apps/poll-service-d4d94c9bb             2         2         2       132m
+replicaset.apps/poll-service-d86c7866d             0         0         0       161m
+replicaset.apps/polling-gateway-nginx-6946c84d45   1         1         0       156m
+replicaset.apps/polling-gateway-nginx-fbfdc9f46    1         1         0       161m
+replicaset.apps/realtime-service-5c7cb5cffc        0         0         0       161m
+replicaset.apps/realtime-service-869d655f4f        2         2         2       156m
+replicaset.apps/redis-6854fd6dc8                   1         1         1       156m
+replicaset.apps/redis-7ff9b94                      0         0         0       161m
+replicaset.apps/vote-service-5b565cf               0         0         0       161m
+replicaset.apps/vote-service-5b9749f8cc            0         0         0       156m
+replicaset.apps/vote-service-6b89f86475            2         2         2       132m
+
+NAME                        READY   AGE
+statefulset.apps/postgres   1/1     161m
+
+Provisioning state
+:
+Succeeded
+Power state
+:
+Running
+Availability zones
+:
+Zone 1, Zone 2
+Mode
+:
+System
+Type
+:
+Virtual machine scale sets
+Node size
+:
+Standard_D2s_v6
+Cluster
+:
+real_time_polling_platform
+Operating system
+:
+Ubuntu Linux
+Kubernetes version
+:
+1.34.7
+Target node count
+:
+2 nodes
+Ready nodes
+:
+2/2 nodes ready
+Node pool
+Max pods per node
+60
+Public IPs per node
+Disabled
+Autoscaling
+Disabled
+Azure Spot Instance
+Disabled
+Maximum price
+N/A
+Scale eviction policy
+N/A
+Node image version
+AKSUbuntu-2204gen2containerd-202605.05.1
+Proximity placement group
+N/A
+Configuration
+Mode
+System
+Node drain timeout
+30
+OS disk size
+128 GB
+Maximum surge
+10%
+Max unavailable nodes
+0
+Skip undrainable nodes
+Schedule
+OS disk type
+Managed
+Virtual network
+Managed
+Subnet
+Managed
+
+{
+    "apiVersion": "2026-03-01",
+    "id": "/subscriptions/b628da50-7030-44d1-aba4-dab3ea3f29eb/resourceGroups/real_time_polling_platform/providers/Microsoft.ContainerService/managedClusters/real_time_polling_platform",
+    "name": "real_time_polling_platform",
+    "type": "microsoft.containerservice/managedclusters",
+    "sku": {
+        "name": "Base",
+        "tier": "Free"
+    },
+    "kind": "Base",
+    "location": "centralindia",
+    "identity": {
+        "type": "SystemAssigned",
+        "principalId": "3f88add6-e422-46c5-9d05-cb42857735cd",
+        "tenantId": "8f791105-7a87-467c-b4d4-b39c0ecb63c6"
+    },
+    "properties": {
+        "provisioningState": "Succeeded",
+        "powerState": {
+            "code": "Running"
+        },
+        "kubernetesVersion": "1.34.7",
+        "currentKubernetesVersion": "1.34.7",
+        "dnsPrefix": "real-time-pooling",
+        "fqdn": "real-time-pooling-7uqy9izl.hcp.centralindia.azmk8s.io",
+        "azurePortalFQDN": "real-time-pooling-7uqy9izl.portal.hcp.centralindia.azmk8s.io",
+        "agentPoolProfiles": [
+            {
+                "name": "agentpool",
+                "count": 2,
+                "vmSize": "Standard_D2s_v6",
+                "osDiskSizeGB": 128,
+                "osDiskType": "Managed",
+                "kubeletDiskType": "OS",
+                "maxPods": 60,
+                "type": "VirtualMachineScaleSets",
+                "availabilityZones": [
+                    "1",
+                    "2"
+                ],
+                "enableAutoScaling": false,
+                "scaleDownMode": "Delete",
+                "provisioningState": "Succeeded",
+                "powerState": {
+                    "code": "Running"
+                },
+                "orchestratorVersion": "1.34.7",
+                "currentOrchestratorVersion": "1.34.7",
+                "enableNodePublicIP": false,
+                "mode": "System",
+                "osType": "Linux",
+                "osSKU": "Ubuntu",
+                "nodeImageVersion": "AKSUbuntu-2204gen2containerd-202605.05.1",
+                "upgradeSettings": {
+                    "maxSurge": "10%",
+                    "maxUnavailable": "0"
+                },
+                "enableFIPS": false,
+                "securityProfile": {
+                    "enableVTPM": false,
+                    "enableSecureBoot": false
+                },
+                "eTag": "7cdb471c-cbf7-49f3-836e-8921a109cf4d"
+            }
+        ],
+        "windowsProfile": {
+            "adminUsername": "azureuser",
+            "enableCSIProxy": true
+        },
+        "servicePrincipalProfile": {
+            "clientId": "msi"
+        },
+        "addonProfiles": {
+            "azureKeyvaultSecretsProvider": {
+                "enabled": false,
+                "config": null
+            },
+            "azurepolicy": {
+                "enabled": false,
+                "config": null
+            },
+            "extensionManager": {
+                "enabled": true,
+                "config": null
+            }
+        },
+        "nodeResourceGroup": "MC_real_time_polling_platform_real_time_polling_platform_centralindia",
+        "enableRBAC": true,
+        "supportPlan": "KubernetesOfficial",
+        "networkProfile": {
+            "networkPlugin": "azure",
+            "networkPluginMode": "overlay",
+            "networkPolicy": "cilium",
+            "networkDataplane": "cilium",
+            "loadBalancerSku": "Standard",
+            "loadBalancerProfile": {
+                "managedOutboundIPs": {
+                    "count": 1
+                },
+                "effectiveOutboundIPs": [
+                    {
+                        "id": "/subscriptions/b628da50-7030-44d1-aba4-dab3ea3f29eb/resourceGroups/MC_real_time_polling_platform_real_time_polling_platform_centralindia/providers/Microsoft.Network/publicIPAddresses/061fd5c7-ab32-4f04-a165-ef834a9654d1"
+                    }
+                ],
+                "backendPoolType": "nodeIPConfiguration"
+            },
+            "podCidr": "10.244.0.0/16",
+            "serviceCidr": "10.0.0.0/16",
+            "dnsServiceIP": "10.0.0.10",
+            "outboundType": "loadBalancer",
+            "podCidrs": [
+                "10.244.0.0/16"
+            ],
+            "serviceCidrs": [
+                "10.0.0.0/16"
+            ],
+            "ipFamilies": [
+                "IPv4"
+            ],
+            "advancedNetworking": {
+                "enabled": false,
+                "observability": {
+                    "enabled": false
+                },
+                "security": {
+                    "enabled": false,
+                    "advancedNetworkPolicies": "None"
+                },
+                "performance": {
+                    "accelerationMode": "None"
+                }
+            }
+        },
+        "maxAgentPools": 100,
+        "apiServerAccessProfile": {
+            "enablePrivateCluster": false
+        },
+        "identityProfile": {
+            "kubeletidentity": {
+                "resourceId": "/subscriptions/b628da50-7030-44d1-aba4-dab3ea3f29eb/resourcegroups/MC_real_time_polling_platform_real_time_polling_platform_centralindia/providers/Microsoft.ManagedIdentity/userAssignedIdentities/real_time_polling_platform-agentpool",
+                "clientId": "482b5fd8-8771-41e6-8804-ff80705a157b",
+                "objectId": "13448a6d-c131-48fe-9dd1-0c4d380ef3fb"
+            }
+        },
+        "autoUpgradeProfile": {
+            "upgradeChannel": "patch",
+            "nodeOSUpgradeChannel": "NodeImage"
+        },
+        "disableLocalAccounts": false,
+        "securityProfile": {
+            "imageCleaner": {
+                "enabled": true,
+                "intervalHours": 168
+            },
+            "workloadIdentity": {
+                "enabled": true
+            }
+        },
+        "storageProfile": {
+            "diskCSIDriver": {
+                "enabled": true
+            },
+            "fileCSIDriver": {
+                "enabled": true
+            },
+            "snapshotController": {
+                "enabled": true
+            }
+        },
+        "oidcIssuerProfile": {
+            "enabled": true,
+            "issuerURL": "https://centralindia.oic.prod-aks.azure.com/8f791105-7a87-467c-b4d4-b39c0ecb63c6/381a3e21-d920-4ba8-b505-e101c103208e/"
+        },
+        "workloadAutoScalerProfile": {},
+        "azureMonitorProfile": {
+            "metrics": {
+                "enabled": true,
+                "kubeStateMetrics": {
+                    "metricLabelsAllowlist": "",
+                    "metricAnnotationsAllowList": ""
+                }
+            }
+        },
+        "resourceUID": "6a0e7bf8c7c149000166f846",
+        "metricsProfile": {
+            "costAnalysis": {
+                "enabled": false
+            }
+        },
+        "nodeProvisioningProfile": {
+            "mode": "Auto",
+            "defaultNodePools": "Auto"
+        },
+        "bootstrapProfile": {
+            "artifactSource": "Direct"
+        },
+        "hostedSystemProfile": {
+            "enabled": false
+        }
+    },
+    "etag": "4992fb11-8470-4027-a56e-11cd32341bdc"
+}
