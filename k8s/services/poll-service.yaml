@@ -19,7 +19,7 @@ spec:
         - name: acr-secret
       containers:
         - name: poll-service
-          image: chiradev.azurecr.io/poll-service:6
+          image: chiradev.azurecr.io/poll-service:11
           ports:
             - containerPort: 8082
           env:
