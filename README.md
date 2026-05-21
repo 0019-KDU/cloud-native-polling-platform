@@ -63,33 +63,41 @@ PollStream allows admins to create real-time polls and users to vote and see liv
 
 ## Application Architecture
 
-```
-                         ┌─────────────────────────────────────────────────────┐
-                         │              polling-platform namespace               │
-                         │                                                       │
-  Browser / Client       │  ┌──────────┐   ┌──────────────┐   ┌─────────────┐  │
-       │                 │  │ frontend │   │ auth-service │   │ poll-service│  │
-       │  HTTP/WS        │  │  :80     │   │    :8081     │   │    :8082    │  │
-       ▼                 │  └──────────┘   └──────────────┘   └─────────────┘  │
-  ┌──────────┐           │        │               │                  │          │
-  │ Gateway  │           │        └───────────────┴──────────────────┘          │
-  │  NGINX   │──────────▶│  ┌──────────────┐   ┌──────────────┐                │
-  │ Fabric   │           │  │ vote-service │   │  analytics   │                │
-  │  :80     │           │  │    :8083     │   │   -service   │                │
-  └──────────┘           │  └──────┬───────┘   │    :8084     │                │
-       │                 │         │           └──────────────┘                │
-       │ /socket.io      │         │ pub/sub                                   │
-       ▼                 │  ┌──────▼───────┐   ┌──────────────┐                │
-  ┌──────────┐           │  │    Redis     │   │  PostgreSQL  │                │
-  │ realtime │           │  │    :6379     │   │    :5432     │                │
-  │ -service │◀──────────│  └──────┬───────┘   └──────────────┘                │
-  │   :3001  │           │         │                                            │
-  └──────────┘           │  ┌──────▼───────┐                                   │
-       │                 │  │   realtime   │                                   │
-       │ WebSocket       │  │   -service   │                                   │
-       ▼                 │  │    :3001     │                                   │
-  Browser Live Updates   │  └──────────────┘                                   │
-                         └─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Browser([User Browser])
+    LB["Azure Load Balancer<br/>Public IP: 4.187.142.0"]
+    GW["NGINX Gateway Fabric<br/>Kubernetes Gateway API"]
+
+    Browser -- "HTTP / WebSocket :80" --> LB
+    LB --> GW
+
+    subgraph NS["polling-platform namespace"]
+        direction TB
+        FE["frontend<br/>React 18 / Nginx :80"]
+        AUTH["auth-service<br/>Spring Boot :8081"]
+        POLL["poll-service<br/>Spring Boot :8082"]
+        VOTE["vote-service<br/>Spring Boot :8083"]
+        ANA["analytics-service<br/>FastAPI :8084"]
+        RT["realtime-service<br/>Socket.IO :3001"]
+        PG[("PostgreSQL :5432<br/>StatefulSet")]
+        REDIS[("Redis :6379<br/>vote-events channel")]
+    end
+
+    GW -- "/" --> FE
+    GW -- "/api/auth/*" --> AUTH
+    GW -- "/api/polls/*" --> POLL
+    GW -- "/api/votes/*" --> VOTE
+    GW -- "/api/analytics/*" --> ANA
+    GW -- "/socket.io/*" --> RT
+
+    AUTH --> PG
+    POLL --> PG
+    VOTE --> PG
+    ANA --> PG
+
+    VOTE -- "PUBLISH" --> REDIS
+    REDIS -- "SUBSCRIBE" --> RT
 ```
 
 ### Service Communication
@@ -105,38 +113,37 @@ PollStream allows admins to create real-time polls and users to vote and see liv
 
 ## Cloud Infrastructure Architecture
 
-```
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │                         AZURE CLOUD                                      │
-  │                                                                          │
-  │  Subscription: b628da50-7030-44d1-aba4-dab3ea3f29eb                     │
-  │  Resource Group: real_time_polling_platform / Region: Central India      │
-  │                                                                          │
-  │  ┌──────────────────────┐    ┌──────────────────────────────────────┐   │
-  │  │  Azure Container     │    │  Azure Kubernetes Service (AKS)      │   │
-  │  │  Registry (ACR)      │    │  Cluster: real_time_polling_platform  │   │
-  │  │  chiradev.azurecr.io │    │  Kubernetes: 1.34.7                  │   │
-  │  │                      │    │                                      │   │
-  │  │  • auth-service      │    │  Node Pool: agentpool                │   │
-  │  │  • poll-service      │    │  VM: Standard_D2s_v6 × 2 nodes       │   │
-  │  │  • vote-service      │    │  Zones: Zone 1 + Zone 2              │   │
-  │  │  • analytics-service │    │  Network: Azure CNI Overlay + Cilium │   │
-  │  │  • realtime-service  │    │                                      │   │
-  │  │  • frontend          │    │  Namespaces:                         │   │
-  │  └──────────┬───────────┘    │  • polling-platform (app workloads)  │   │
-  │             │ pull images    │  • argocd        (GitOps controller) │   │
-  │             └───────────────▶│  • nginx-gateway (API gateway)       │   │
-  │                              └──────────────────────────────────────┘   │
-  │                                                                          │
-  │  ┌───────────────────────────────────────────────────────────────────┐  │
-  │  │  Azure DevOps  (Subscription: c2ef2de6-5bf9-43e5-aaf8-cf47b3f4835e│  │
-  │  │  Org: devops-internal-pocs / Project: Real-Time Polling Platform  │  │
-  │  │                                                                   │  │
-  │  │  • Azure Repos — GitOps source of truth for ArgoCD               │  │
-  │  │  • Pipelines  — 6 independent service CI pipelines               │  │
-  │  │  • Self-hosted Agent: azureagent (Ubuntu on Azure VM)            │  │
-  │  └───────────────────────────────────────────────────────────────────┘  │
-  └──────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Azure["Azure Cloud — Subscription b628da50… / RG: real_time_polling_platform / Region: Central India"]
+        direction TB
+
+        subgraph ACR["Azure Container Registry — chiradev.azurecr.io"]
+            direction TB
+            IMG["auth-service • poll-service • vote-service<br/>analytics-service • realtime-service • frontend"]
+        end
+
+        subgraph AKS["Azure Kubernetes Service (AKS) — Cluster: real_time_polling_platform"]
+            direction TB
+            NODE["Node Pool: agentpool<br/>VM: Standard_D2s_v6 × 2 nodes<br/>Zones: 1 + 2 • Azure CNI Overlay + Cilium<br/>Kubernetes 1.34.7"]
+            NS_APP["Namespace: polling-platform<br/>(application workloads)"]
+            NS_ARGO["Namespace: argocd<br/>(GitOps controller)"]
+            NS_NGX["Namespace: nginx-gateway<br/>(API gateway)"]
+        end
+
+        subgraph ADO["Azure DevOps — Org: devops-internal-pocs / Project: Real-Time Polling Platform"]
+            direction TB
+            REPOS["Azure Repos<br/>(GitOps source of truth for ArgoCD)"]
+            PIPES["Pipelines<br/>(6 service CI pipelines)"]
+            AGENT["Self-hosted Agent: azureagent<br/>(Ubuntu on Azure VM)"]
+        end
+    end
+
+    ACR -- "image pull" --> AKS
+    PIPES -- "docker push" --> ACR
+    PIPES -- "git push manifest" --> REPOS
+    REPOS -- "ArgoCD sync (every 3 min)" --> NS_ARGO
+    NS_ARGO -- "apply manifests" --> NS_APP
 ```
 
 ---
@@ -145,42 +152,43 @@ PollStream allows admins to create real-time polls and users to vote and see liv
 
 ### External Traffic Flow
 
-```
-User Browser
-     │
-     │  HTTP :80
-     ▼
-Azure Load Balancer (Public IP: 4.187.142.0)
-     │
-     ▼
-NGINX Gateway Fabric (Kubernetes Gateway API)
-     │
-     │  HTTPRoute path matching:
-     ├── /api/auth/*      ──▶  auth-service-svc:8081
-     ├── /api/polls/*     ──▶  poll-service-svc:8082
-     ├── /api/votes/*     ──▶  vote-service-svc:8083
-     ├── /api/analytics/* ──▶  analytics-service-svc:8084
-     ├── /socket.io/*     ──▶  realtime-service-svc:3001
-     └── /*               ──▶  frontend-svc:80
+```mermaid
+flowchart TB
+    U([User Browser])
+    LB["Azure Load Balancer<br/>Public IP: 4.187.142.0"]
+    GW["NGINX Gateway Fabric<br/>(Kubernetes Gateway API)"]
+    AUTH["auth-service-svc:8081"]
+    POLL["poll-service-svc:8082"]
+    VOTE["vote-service-svc:8083"]
+    ANA["analytics-service-svc:8084"]
+    RT["realtime-service-svc:3001"]
+    FE["frontend-svc:80"]
+
+    U -- "HTTP :80" --> LB --> GW
+    GW -- "/api/auth/*" --> AUTH
+    GW -- "/api/polls/*" --> POLL
+    GW -- "/api/votes/*" --> VOTE
+    GW -- "/api/analytics/*" --> ANA
+    GW -- "/socket.io/*" --> RT
+    GW -- "/*" --> FE
 ```
 
 ### WebSocket (Real-Time) Flow
 
-```
-User Browser
-     │
-     │  WebSocket Upgrade (ws://4.187.142.0/socket.io)
-     ▼
-NGINX Gateway — Session Affinity: ClientIP (sticky sessions)
-     ▼
-realtime-service (Socket.IO server)
-     │
-     │  Redis SUBSCRIBE (vote-events channel)
-     ▼
-Redis ◀── vote-service PUBLISH (on every vote)
-     │
-     ▼
-realtime-service pushes live update ──▶ All connected browsers
+```mermaid
+flowchart TB
+    U([User Browser])
+    GW["NGINX Gateway<br/>Session Affinity: ClientIP"]
+    RT["realtime-service<br/>Socket.IO server :3001"]
+    R[("Redis :6379<br/>vote-events channel")]
+    VOTE["vote-service"]
+    OTHER([All connected browsers])
+
+    U -- "WebSocket Upgrade<br/>ws://4.187.142.0/socket.io" --> GW
+    GW --> RT
+    VOTE -- "PUBLISH on every vote" --> R
+    R -- "SUBSCRIBE" --> RT
+    RT -- "live update broadcast" --> OTHER
 ```
 
 ### Network CIDRs
@@ -216,24 +224,21 @@ realtime-service pushes live update ──▶ All connected browsers
 
 Each microservice has its own independent pipeline triggered by changes to its source folder. All 6 pipelines follow the same 3-stage pattern:
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Azure DevOps Pipeline                            │
-│                                                                     │
-│  Trigger: git push to <service-name>/* folder                       │
-│                                                                     │
-│  ┌───────────┐     ┌───────────┐     ┌──────────────────────────┐  │
-│  │  Stage 1  │     │  Stage 2  │     │        Stage 3           │  │
-│  │   Build   │────▶│   Push    │────▶│     UpdateManifest       │  │
-│  │           │     │           │     │                          │  │
-│  │ docker    │     │ push to   │     │ 1. git pull origin main  │  │
-│  │ build     │     │ ACR with  │     │ 2. sed replace image tag │  │
-│  │           │     │ BuildId   │     │ 3. git commit [skip ci]  │  │
-│  │           │     │ as tag    │     │ 4. git push → Azure Repo │  │
-│  └───────────┘     └───────────┘     │ 5. ArgoCD detects change │  │
-│                                      │ 6. AKS rolling update    │  │
-│                                      └──────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    TRIG["git push to<br/>service folder"]
+
+    subgraph Pipeline["Azure DevOps Pipeline"]
+        direction LR
+        S1["Stage 1: Build<br/>docker build"]
+        S2["Stage 2: Push<br/>push to ACR<br/>tag = $(BuildId)"]
+        S3["Stage 3: UpdateManifest<br/>1. git pull origin main<br/>2. sed replace image tag<br/>3. git commit [skip ci]<br/>4. git push to Azure Repo"]
+    end
+
+    ARGO["ArgoCD detects change"]
+    AKS["AKS rolling update"]
+
+    TRIG --> S1 --> S2 --> S3 --> ARGO --> AKS
 ```
 
 ![Azure Pipelines](docs/az-pipelines.png)
@@ -322,25 +327,16 @@ For the UpdateManifest stage to push back to the repo:
 
 ### GitOps Flow
 
-```
-Developer pushes code change
-          │
-          ▼
-Azure DevOps Pipeline (CI)
-  Build → Push image to ACR → Update k8s YAML → Push to Azure Repo
-          │
-          ▼
-ArgoCD polls Azure Repo every 3 minutes
-  Detects new image tag in k8s/services/*.yaml
-          │
-          ▼
-ArgoCD syncs k8s/ folder to AKS cluster (polling-platform namespace)
-          │
-          ▼
-Kubernetes performs rolling update — zero downtime
-          │
-          ▼
-New version live at http://4.187.142.0
+```mermaid
+flowchart TB
+    DEV([Developer pushes code])
+    CI["Azure DevOps Pipeline (CI)<br/>Build → Push image to ACR<br/>→ Update k8s YAML → Push to Azure Repo"]
+    POLL["ArgoCD polls Azure Repo<br/>every 3 minutes<br/>(detects new image tag in k8s/services/*.yaml)"]
+    SYNC["ArgoCD syncs k8s/ folder to AKS<br/>(polling-platform namespace)"]
+    ROLL["Kubernetes rolling update<br/>(zero downtime)"]
+    LIVE([New version live at http://4.187.142.0])
+
+    DEV --> CI --> POLL --> SYNC --> ROLL --> LIVE
 ```
 
 ### ArgoCD Application
@@ -546,15 +542,125 @@ kubectl get pods -n polling-platform
 
 ```
 cloud-native-polling-platform/
-├── auth-service/          # Spring Boot — JWT auth
-├── poll-service/          # Spring Boot — Poll management
-├── vote-service/          # Spring Boot — Voting + Redis pub/sub
-├── analytics-service/     # FastAPI — Statistics & aggregation
-├── realtime-service/      # Node.js + Socket.IO — WebSockets
-├── frontend/              # React 18 — Voting UI + Admin dashboard
-├── k8s/                   # Kubernetes manifests (ArgoCD source)
-├── azure-pipelines/       # Azure DevOps CI pipeline definitions
-├── docs/                  # Architecture diagrams and screenshots
-├── docker-compose.yml     # Local development
-└── init-db.sql            # Database schema seed
+│
+├── auth-service/                              # Spring Boot — JWT auth & user management
+│   ├── src/main/java/com/polling/auth/
+│   │   ├── AuthServiceApplication.java
+│   │   ├── config/SecurityConfig.java
+│   │   ├── controller/AuthController.java
+│   │   ├── dto/                               # AuthResponse, LoginRequest, RegisterRequest
+│   │   ├── entity/User.java
+│   │   ├── exception/                         # AuthException, GlobalExceptionHandler
+│   │   ├── repository/UserRepository.java
+│   │   ├── security/                          # JwtAuthenticationFilter, JwtTokenProvider, UserDetailsServiceImpl
+│   │   └── service/AuthService.java
+│   ├── src/main/resources/
+│   │   ├── application.yml
+│   │   └── data.sql
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── README.md
+│
+├── poll-service/                              # Spring Boot — Poll lifecycle management
+│   ├── src/main/java/com/polling/polls/
+│   │   ├── PollServiceApplication.java
+│   │   ├── config/SecurityConfig.java
+│   │   ├── controller/PollController.java
+│   │   ├── dto/                               # CreatePollRequest, PollOptionDto, PollResponse
+│   │   ├── entity/                            # Poll, PollOption, PollStatus
+│   │   ├── exception/                         # GlobalExceptionHandler, PollNotFoundException
+│   │   ├── repository/                        # PollRepository, PollOptionRepository
+│   │   ├── security/                          # JwtAuthenticationFilter, JwtTokenProvider
+│   │   └── service/PollService.java
+│   ├── src/main/resources/application.yml
+│   ├── Dockerfile
+│   └── pom.xml
+│
+├── vote-service/                              # Spring Boot — Voting + Redis pub/sub
+│   ├── src/main/java/com/polling/votes/
+│   │   ├── VoteServiceApplication.java
+│   │   ├── config/                            # RedisConfig, WebConfig
+│   │   ├── controller/VoteController.java
+│   │   ├── dto/                               # VoteRequest, VoteResponse
+│   │   ├── entity/Vote.java
+│   │   ├── exception/                         # DuplicateVoteException, GlobalExceptionHandler
+│   │   ├── repository/VoteRepository.java
+│   │   └── service/VoteService.java
+│   ├── src/main/resources/application.yml
+│   ├── Dockerfile
+│   └── pom.xml
+│
+├── analytics-service/                         # FastAPI — Statistics & aggregation
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   ├── models/models.py                   # SQLAlchemy ORM models
+│   │   ├── routers/analytics.py               # API endpoints
+│   │   ├── schemas/schemas.py                 # Pydantic schemas
+│   │   └── services/analytics_service.py      # Business logic
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── test_db_connection.py
+│   ├── Dockerfile
+│   └── README.md
+│
+├── realtime-service/                          # Node.js + Socket.IO — WebSocket broadcasting
+│   ├── src/
+│   │   ├── index.js
+│   │   ├── config/redis.js
+│   │   └── socket/socketHandler.js
+│   ├── package.json
+│   ├── package-lock.json
+│   └── Dockerfile
+│
+├── frontend/                                  # React 18 + Nginx — Voting UI & Admin dashboard
+│   ├── public/index.html
+│   ├── src/
+│   │   ├── index.js
+│   │   ├── App.js
+│   │   ├── api/axios.js                       # Axios instance + interceptors
+│   │   ├── components/                        # CreatePollModal, LoadingSpinner, Navbar, ProtectedRoute
+│   │   ├── context/AuthContext.js
+│   │   ├── pages/                             # Login, PollList, VotePage, AdminDashboard, Analytics, PlatformAnalytics
+│   │   └── styles/global.css
+│   ├── nginx.conf                             # SPA routing + reverse-proxy config
+│   ├── package.json
+│   ├── package-lock.json
+│   └── Dockerfile
+│
+├── k8s/                                       # Kubernetes manifests (ArgoCD source of truth)
+│   ├── 00-namespace.yaml                      # polling-platform namespace
+│   ├── 01-secrets.yaml                        # PostgreSQL, Redis, JWT secrets
+│   ├── 02-configmap.yaml                      # Service config (DB URLs, Redis host)
+│   ├── gateway/
+│   │   ├── gatewayclass.yaml
+│   │   ├── gateway.yaml                       # NGINX Gateway (HTTP :80, no TLS)
+│   │   └── httproutes.yaml                    # Path-based routing rules
+│   ├── infrastructure/
+│   │   ├── postgres.yaml                      # StatefulSet + PVC (10Gi managed-csi)
+│   │   └── redis.yaml                         # Deployment + ClusterIP Service
+│   └── services/
+│       ├── auth-service.yaml
+│       ├── poll-service.yaml
+│       ├── vote-service.yaml
+│       ├── analytics-service.yaml
+│       ├── realtime-service.yaml
+│       └── frontend.yaml
+│
+├── azure-pipelines/                           # Azure DevOps CI pipeline definitions
+│   ├── auth-service-pipeline.yml
+│   ├── poll-service-pipeline.yml
+│   ├── vote-service-pipeline.yml
+│   ├── analytics-service-pipeline.yml
+│   ├── realtime-service-pipeline.yml
+│   └── frontend-service-pipeline.yml
+│
+├── docs/                                      # Architecture diagrams & screenshots
+│
+├── docker-compose.yml                         # Local development — all services
+├── docker-compose.redis.yml                   # Redis-only override for partial local runs
+├── init-db.sql                                # Database schema seed
+├── .gitignore
+└── README.md
 ```
