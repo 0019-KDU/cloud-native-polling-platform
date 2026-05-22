@@ -105,6 +105,48 @@ flowchart TB
 - **realtime-service** — Subscribes to Redis channel, broadcasts vote events to connected browsers over WebSocket.
 - **frontend** — React SPA served by Nginx. Connects to backend via Gateway using relative URLs.
 
+### API Endpoints
+
+All endpoints are exposed through the Gateway at `http://4.187.142.0`.
+
+**auth-service** — `/api/auth`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/auth/register` | Public | Register a new user, returns JWT |
+| POST | `/api/auth/login` | Public | Authenticate, returns JWT |
+| GET | `/api/auth/validate` | Bearer | Validate current token |
+| GET | `/api/auth/health` | Public | Health check |
+
+**poll-service** — `/api/polls`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/polls` | Public | List all polls |
+| GET | `/api/polls/active` | Public | List active polls |
+| GET | `/api/polls/{id}` | Public | Get a single poll |
+| POST | `/api/polls` | Admin | Create a poll |
+| PUT | `/api/polls/{id}/activate` | Admin | Activate a poll |
+| PUT | `/api/polls/{id}/end` | Admin | End a poll |
+| DELETE | `/api/polls/{id}` | Admin | Delete a poll |
+
+**vote-service** — `/api/votes`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/votes` | Bearer | Cast a vote (publishes to Redis) |
+| GET | `/api/votes/results/{pollId}` | Public | Get live vote results |
+
+**analytics-service** — `/api/analytics`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/analytics/polls` | Public | Summary of all polls |
+| GET | `/api/analytics/polls/{id}` | Public | Detailed analytics for a poll |
+| GET | `/api/analytics/stats` | Public | Platform-wide statistics |
+
+**realtime-service** — `/socket.io` (WebSocket) — emits live vote updates to subscribed clients.
+
 ---
 
 ## Cloud Infrastructure Architecture
@@ -483,6 +525,70 @@ Azure Monitor is enabled on the AKS cluster with Prometheus metrics collection v
 
 ### Analytics
 ![Analytics](docs/application-04.png)
+
+---
+
+## Troubleshooting & Lessons Learned
+
+Real issues encountered while deploying this platform and how they were solved.
+
+### PostgreSQL CrashLoopBackOff — `lost+found` error
+
+**Symptom:** `initdb: error: directory "/var/lib/postgresql/data" exists but is not empty`
+
+**Cause:** The Azure Disk PVC mounts at `/var/lib/postgresql/data`, but the filesystem creates a `lost+found` directory there. PostgreSQL refuses to initialize in a non-empty directory.
+
+**Fix:** Set `PGDATA` to a **subdirectory** of the mount point in `k8s/infrastructure/postgres.yaml`:
+
+```yaml
+env:
+  - name: PGDATA
+    value: /var/lib/postgresql/data/pgdata
+```
+
+### Service CrashLoopBackOff — wrong health probe path
+
+**Symptom:** Pod restarts repeatedly; logs show `GET /health 404 Not Found`.
+
+**Cause:** The Kubernetes readiness/liveness probe path didn't match the app's actual health endpoint (e.g. analytics-service exposes `/api/analytics/health`, not `/health`).
+
+**Fix:** Align the probe `httpGet.path` with the real endpoint in the service manifest.
+
+### ArgoCD not deploying changes
+
+**Symptom:** Pushed a fix to GitHub, but ArgoCD kept reverting it / never deployed.
+
+**Cause:** ArgoCD watches the **Azure DevOps** repo, not GitHub. Pushing only to GitHub had no effect.
+
+**Fix:** Always push to **both** remotes. Azure Repos is the GitOps source of truth:
+
+```bash
+git push origin main   # GitHub (mirror)
+git push azure main    # Azure Repos (ArgoCD watches this)
+```
+
+### Frontend calling `localhost` in production
+
+**Symptom:** Browser console shows `net::ERR_CONNECTION_REFUSED` for `localhost:8081/api/...`.
+
+**Cause:** The React app's API base URL fell back to `http://localhost:PORT` because the production env var wasn't set.
+
+**Fix:** Use **relative URLs** (empty base URL) in production so the browser sends requests to the same host, which the Gateway routes to the right service.
+
+### Gateway pods show `0/1 Ready` but traffic works
+
+**Symptom:** `polling-gateway-nginx` pods are `0/1` but the app responds fine.
+
+**Cause:** Readiness probe on port 8081 fails (leftover config from a previous NGINX Gateway Fabric version), but NGINX on port 80 still serves traffic.
+
+**Note:** Cosmetic — the `Gateway` resource shows `PROGRAMMED: True` and the LoadBalancer routes external traffic directly.
+
+### Pipeline can't push manifest changes (403)
+
+**Symptom:** UpdateManifest stage fails with a permission error on `git push`.
+
+**Fix:** Grant the build identity write access:
+**Project Settings → Repositories → Security → `<Project> Build Service` → Contribute → Allow**
 
 ---
 
