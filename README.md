@@ -63,33 +63,37 @@ PollStream allows admins to create real-time polls and users to vote and see liv
 
 ## Application Architecture
 
-```
-                         ┌─────────────────────────────────────────────────────┐
-                         │              polling-platform namespace               │
-                         │                                                       │
-  Browser / Client       │  ┌──────────┐   ┌──────────────┐   ┌─────────────┐  │
-       │                 │  │ frontend │   │ auth-service │   │ poll-service│  │
-       │  HTTP/WS        │  │  :80     │   │    :8081     │   │    :8082    │  │
-       ▼                 │  └──────────┘   └──────────────┘   └─────────────┘  │
-  ┌──────────┐           │        │               │                  │          │
-  │ Gateway  │           │        └───────────────┴──────────────────┘          │
-  │  NGINX   │──────────▶│  ┌──────────────┐   ┌──────────────┐                │
-  │ Fabric   │           │  │ vote-service │   │  analytics   │                │
-  │  :80     │           │  │    :8083     │   │   -service   │                │
-  └──────────┘           │  └──────┬───────┘   │    :8084     │                │
-       │                 │         │           └──────────────┘                │
-       │ /socket.io      │         │ pub/sub                                   │
-       ▼                 │  ┌──────▼───────┐   ┌──────────────┐                │
-  ┌──────────┐           │  │    Redis     │   │  PostgreSQL  │                │
-  │ realtime │           │  │    :6379     │   │    :5432     │                │
-  │ -service │◀──────────│  └──────┬───────┘   └──────────────┘                │
-  │   :3001  │           │         │                                            │
-  └──────────┘           │  ┌──────▼───────┐                                   │
-       │                 │  │   realtime   │                                   │
-       │ WebSocket       │  │   -service   │                                   │
-       ▼                 │  │    :3001     │                                   │
-  Browser Live Updates   │  └──────────────┘                                   │
-                         └─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Client([Browser / Client])
+
+    subgraph NS["polling-platform namespace"]
+        GW["NGINX Gateway Fabric<br/>:80"]
+        FE["frontend<br/>:80"]
+        AUTH["auth-service<br/>:8081"]
+        POLL["poll-service<br/>:8082"]
+        VOTE["vote-service<br/>:8083"]
+        ANALYTICS["analytics-service<br/>:8084"]
+        RT["realtime-service<br/>:3001"]
+        REDIS[("Redis<br/>:6379")]
+        PG[("PostgreSQL<br/>:5432")]
+    end
+
+    Client -- HTTP / WS --> GW
+    GW -- "/" --> FE
+    GW -- "/api/auth" --> AUTH
+    GW -- "/api/polls" --> POLL
+    GW -- "/api/votes" --> VOTE
+    GW -- "/api/analytics" --> ANALYTICS
+    GW -- "/socket.io" --> RT
+
+    AUTH --> PG
+    POLL --> PG
+    VOTE --> PG
+    ANALYTICS --> PG
+    VOTE -- "publish vote events" --> REDIS
+    RT -- "subscribe vote events" --> REDIS
+    RT -- "WebSocket live updates" --> Client
 ```
 
 ### Service Communication
@@ -105,38 +109,33 @@ PollStream allows admins to create real-time polls and users to vote and see liv
 
 ## Cloud Infrastructure Architecture
 
-```
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │                         AZURE CLOUD                                      │
-  │                                                                          │
-  │  Subscription: b628da50-7030-44d1-aba4-dab3ea3f29eb                     │
-  │  Resource Group: real_time_polling_platform / Region: Central India      │
-  │                                                                          │
-  │  ┌──────────────────────┐    ┌──────────────────────────────────────┐   │
-  │  │  Azure Container     │    │  Azure Kubernetes Service (AKS)      │   │
-  │  │  Registry (ACR)      │    │  Cluster: real_time_polling_platform  │   │
-  │  │  chiradev.azurecr.io │    │  Kubernetes: 1.34.7                  │   │
-  │  │                      │    │                                      │   │
-  │  │  • auth-service      │    │  Node Pool: agentpool                │   │
-  │  │  • poll-service      │    │  VM: Standard_D2s_v6 × 2 nodes       │   │
-  │  │  • vote-service      │    │  Zones: Zone 1 + Zone 2              │   │
-  │  │  • analytics-service │    │  Network: Azure CNI Overlay + Cilium │   │
-  │  │  • realtime-service  │    │                                      │   │
-  │  │  • frontend          │    │  Namespaces:                         │   │
-  │  └──────────┬───────────┘    │  • polling-platform (app workloads)  │   │
-  │             │ pull images    │  • argocd        (GitOps controller) │   │
-  │             └───────────────▶│  • nginx-gateway (API gateway)       │   │
-  │                              └──────────────────────────────────────┘   │
-  │                                                                          │
-  │  ┌───────────────────────────────────────────────────────────────────┐  │
-  │  │  Azure DevOps  (Subscription: c2ef2de6-5bf9-43e5-aaf8-cf47b3f4835e│  │
-  │  │  Org: devops-internal-pocs / Project: Real-Time Polling Platform  │  │
-  │  │                                                                   │  │
-  │  │  • Azure Repos — GitOps source of truth for ArgoCD               │  │
-  │  │  • Pipelines  — 6 independent service CI pipelines               │  │
-  │  │  • Self-hosted Agent: azureagent (Ubuntu on Azure VM)            │  │
-  │  └───────────────────────────────────────────────────────────────────┘  │
-  └──────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph AZURE["☁️ Azure Cloud — Region: Central India"]
+        direction TB
+
+        subgraph DEVOPS["Azure DevOps (Subscription 1)"]
+            REPO["Azure Repos<br/>GitOps source of truth"]
+            PIPE["Pipelines<br/>6 service CI pipelines"]
+            AGENT["Self-hosted Agent<br/>azureagent"]
+        end
+
+        subgraph SUB2["Subscription 2: real_time_polling_platform"]
+            ACR["Azure Container Registry<br/>chiradev.azurecr.io<br/>6 image repositories"]
+
+            subgraph AKS["Azure Kubernetes Service (AKS) 1.34.7<br/>Standard_D2s_v6 × 2 nodes (Zone 1 + 2)"]
+                NS1["polling-platform<br/>(app workloads)"]
+                NS2["argocd<br/>(GitOps controller)"]
+                NS3["nginx-gateway<br/>(API gateway)"]
+            end
+        end
+    end
+
+    PIPE -- "build & push images" --> ACR
+    PIPE -- "update manifest" --> REPO
+    ACR -- "pull images" --> AKS
+    REPO -- "ArgoCD sync" --> NS2
+    NS2 -- "deploy" --> NS1
 ```
 
 ---
@@ -145,42 +144,38 @@ PollStream allows admins to create real-time polls and users to vote and see liv
 
 ### External Traffic Flow
 
-```
-User Browser
-     │
-     │  HTTP :80
-     ▼
-Azure Load Balancer (Public IP: 4.187.142.0)
-     │
-     ▼
-NGINX Gateway Fabric (Kubernetes Gateway API)
-     │
-     │  HTTPRoute path matching:
-     ├── /api/auth/*      ──▶  auth-service-svc:8081
-     ├── /api/polls/*     ──▶  poll-service-svc:8082
-     ├── /api/votes/*     ──▶  vote-service-svc:8083
-     ├── /api/analytics/* ──▶  analytics-service-svc:8084
-     ├── /socket.io/*     ──▶  realtime-service-svc:3001
-     └── /*               ──▶  frontend-svc:80
+```mermaid
+flowchart TB
+    USER([User Browser])
+    LB["Azure Load Balancer<br/>Public IP: 4.187.142.0"]
+    GW["NGINX Gateway Fabric<br/>Kubernetes Gateway API"]
+
+    USER -- "HTTP :80" --> LB
+    LB --> GW
+
+    GW -- "/api/auth/*" --> A["auth-service-svc:8081"]
+    GW -- "/api/polls/*" --> B["poll-service-svc:8082"]
+    GW -- "/api/votes/*" --> C["vote-service-svc:8083"]
+    GW -- "/api/analytics/*" --> D["analytics-service-svc:8084"]
+    GW -- "/socket.io/*" --> E["realtime-service-svc:3001"]
+    GW -- "/*" --> F["frontend-svc:80"]
 ```
 
 ### WebSocket (Real-Time) Flow
 
-```
-User Browser
-     │
-     │  WebSocket Upgrade (ws://4.187.142.0/socket.io)
-     ▼
-NGINX Gateway — Session Affinity: ClientIP (sticky sessions)
-     ▼
-realtime-service (Socket.IO server)
-     │
-     │  Redis SUBSCRIBE (vote-events channel)
-     ▼
-Redis ◀── vote-service PUBLISH (on every vote)
-     │
-     ▼
-realtime-service pushes live update ──▶ All connected browsers
+```mermaid
+flowchart TB
+    USER([User Browser])
+    GW["NGINX Gateway<br/>Session Affinity: ClientIP (sticky)"]
+    RT["realtime-service<br/>Socket.IO server"]
+    REDIS[("Redis<br/>vote-events channel")]
+    VOTE["vote-service"]
+
+    USER -- "WebSocket Upgrade<br/>ws://4.187.142.0/socket.io" --> GW
+    GW --> RT
+    RT -- "SUBSCRIBE" --> REDIS
+    VOTE -- "PUBLISH on every vote" --> REDIS
+    RT -- "live update broadcast" --> USER
 ```
 
 ### Network CIDRs
@@ -216,24 +211,20 @@ realtime-service pushes live update ──▶ All connected browsers
 
 Each microservice has its own independent pipeline triggered by changes to its source folder. All 6 pipelines follow the same 3-stage pattern:
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Azure DevOps Pipeline                            │
-│                                                                     │
-│  Trigger: git push to <service-name>/* folder                       │
-│                                                                     │
-│  ┌───────────┐     ┌───────────┐     ┌──────────────────────────┐  │
-│  │  Stage 1  │     │  Stage 2  │     │        Stage 3           │  │
-│  │   Build   │────▶│   Push    │────▶│     UpdateManifest       │  │
-│  │           │     │           │     │                          │  │
-│  │ docker    │     │ push to   │     │ 1. git pull origin main  │  │
-│  │ build     │     │ ACR with  │     │ 2. sed replace image tag │  │
-│  │           │     │ BuildId   │     │ 3. git commit [skip ci]  │  │
-│  │           │     │ as tag    │     │ 4. git push → Azure Repo │  │
-│  └───────────┘     └───────────┘     │ 5. ArgoCD detects change │  │
-│                                      │ 6. AKS rolling update    │  │
-│                                      └──────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    TRIGGER(["Trigger:<br/>git push to<br/>service folder"])
+
+    subgraph PIPELINE["Azure DevOps Pipeline"]
+        direction LR
+        BUILD["Stage 1: Build<br/>docker build"]
+        PUSH["Stage 2: Push<br/>push to ACR<br/>tag = BuildId"]
+        UPDATE["Stage 3: UpdateManifest<br/>1. git pull<br/>2. sed replace image tag<br/>3. git commit [skip ci]<br/>4. git push → Azure Repo"]
+    end
+
+    ARGO["ArgoCD detects change<br/>→ AKS rolling update"]
+
+    TRIGGER --> BUILD --> PUSH --> UPDATE --> ARGO
 ```
 
 ![Azure Pipelines](docs/az-pipelines.png)
@@ -257,22 +248,21 @@ azure-pipelines/
 ```bash
 git config user.email "azuredevops@pollstream.com"
 git config user.name "Azure DevOps CI"
-git fetch origin && git checkout main && git pull origin main
+git fetch origin
+git checkout main
+git pull origin main
 
-# Replace old tag with new BuildId
-sed -i "s|image: chiradev.azurecr.io/auth-service:.*\
-       |image: chiradev.azurecr.io/auth-service:$(tag)|g" \
-       k8s/services/auth-service.yaml
+# Replace the old image tag with the new BuildId
+sed -i "s|image: $(containerRegistry)/$(imageRepository):.*|image: $(containerRegistry)/$(imageRepository):$(tag)|g" $(k8sFile)
 
-# Commit only if file changed (prevents empty commits)
-git add k8s/services/auth-service.yaml
-git diff --staged --quiet || \
-  git commit -m "ci: update auth-service image tag to $(tag) [skip ci]"
+# Commit only if the file actually changed (prevents empty commits)
+git add $(k8sFile)
+git diff --staged --quiet || git commit -m "ci: update $(imageRepository) image tag to $(tag) [skip ci]"
 
 git push origin main
 ```
 
-> `[skip ci]` prevents the commit from triggering the pipeline again.
+> `$(tag)` is the Azure DevOps `Build.BuildId`. `[skip ci]` prevents the commit from triggering the pipeline again (infinite loop).
 
 ### Azure Container Registry
 
@@ -322,25 +312,16 @@ For the UpdateManifest stage to push back to the repo:
 
 ### GitOps Flow
 
-```
-Developer pushes code change
-          │
-          ▼
-Azure DevOps Pipeline (CI)
-  Build → Push image to ACR → Update k8s YAML → Push to Azure Repo
-          │
-          ▼
-ArgoCD polls Azure Repo every 3 minutes
-  Detects new image tag in k8s/services/*.yaml
-          │
-          ▼
-ArgoCD syncs k8s/ folder to AKS cluster (polling-platform namespace)
-          │
-          ▼
-Kubernetes performs rolling update — zero downtime
-          │
-          ▼
-New version live at http://4.187.142.0
+```mermaid
+flowchart TB
+    DEV(["Developer pushes code change"])
+    CI["Azure DevOps Pipeline (CI)<br/>Build → Push to ACR → Update k8s YAML → Push to Azure Repo"]
+    POLL["ArgoCD polls Azure Repo every 3 min<br/>Detects new image tag in k8s/services/*.yaml"]
+    SYNC["ArgoCD syncs k8s/ folder to AKS cluster<br/>(polling-platform namespace)"]
+    ROLL["Kubernetes rolling update — zero downtime"]
+    LIVE(["New version live at http://4.187.142.0"])
+
+    DEV --> CI --> POLL --> SYNC --> ROLL --> LIVE
 ```
 
 ### ArgoCD Application
