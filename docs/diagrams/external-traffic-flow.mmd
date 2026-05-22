@@ -1,0 +1,14 @@
+flowchart TB
+    USER([User Browser])
+    LB["Azure Load Balancer<br/>Public IP: 4.187.142.0"]
+    GW["NGINX Gateway Fabric<br/>Kubernetes Gateway API"]
+
+    USER -- "HTTP :80" --> LB
+    LB --> GW
+
+    GW -- "/api/auth/*" --> A["auth-service-svc:8081"]
+    GW -- "/api/polls/*" --> B["poll-service-svc:8082"]
+    GW -- "/api/votes/*" --> C["vote-service-svc:8083"]
+    GW -- "/api/analytics/*" --> D["analytics-service-svc:8084"]
+    GW -- "/socket.io/*" --> E["realtime-service-svc:3001"]
+    GW -- "/*" --> F["frontend-svc:80"]

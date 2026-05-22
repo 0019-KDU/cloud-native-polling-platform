@@ -1,0 +1,19 @@
+flowchart LR
+    subgraph DEVOPS["Azure DevOps — Subscription 1"]
+        PIPE["Pipelines<br/>6 service CI pipelines"]
+        REPO["Azure Repos<br/>GitOps source of truth"]
+    end
+
+    subgraph SUB2["Subscription 2 — Central India"]
+        ACR["Azure Container Registry<br/>chiradev.azurecr.io"]
+        ARGO["argocd namespace<br/>GitOps controller"]
+        APP["polling-platform namespace<br/>app workloads"]
+        GWNS["nginx-gateway namespace<br/>API gateway"]
+    end
+
+    PIPE -->|"build & push images"| ACR
+    PIPE -->|"update manifest"| REPO
+    REPO -->|"sync"| ARGO
+    ACR -->|"pull images"| APP
+    ARGO -->|"deploy"| APP
+    APP --> GWNS

@@ -1,0 +1,30 @@
+flowchart TB
+    Client(["Browser / Client"])
+    GW["NGINX Gateway Fabric :80"]
+
+    Client -->|HTTP / WebSocket| GW
+
+    subgraph NS["polling-platform namespace"]
+        FE["frontend :80"]
+        AUTH["auth-service :8081"]
+        POLL["poll-service :8082"]
+        VOTE["vote-service :8083"]
+        ANALYTICS["analytics-service :8084"]
+        RT["realtime-service :3001"]
+        REDIS[("Redis :6379")]
+        PG[("PostgreSQL :5432")]
+    end
+
+    GW -->|/| FE
+    GW -->|/api/auth| AUTH
+    GW -->|/api/polls| POLL
+    GW -->|/api/votes| VOTE
+    GW -->|/api/analytics| ANALYTICS
+    GW -->|/socket.io| RT
+
+    AUTH --> PG
+    POLL --> PG
+    VOTE --> PG
+    ANALYTICS --> PG
+    VOTE -->|publish| REDIS
+    REDIS -->|subscribe| RT

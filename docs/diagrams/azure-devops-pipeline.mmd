@@ -1,0 +1,13 @@
+flowchart LR
+    TRIGGER(["Trigger:<br/>git push to<br/>service folder"])
+
+    subgraph PIPELINE["Azure DevOps Pipeline"]
+        direction LR
+        BUILD["Stage 1: Build<br/>docker build"]
+        PUSH["Stage 2: Push<br/>push to ACR<br/>tag = BuildId"]
+        UPDATE["Stage 3: UpdateManifest<br/>1. git pull<br/>2. sed replace image tag<br/>3. git commit [skip ci]<br/>4. git push → Azure Repo"]
+    end
+
+    ARGO["ArgoCD detects change<br/>→ AKS rolling update"]
+
+    TRIGGER --> BUILD --> PUSH --> UPDATE --> ARGO

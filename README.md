@@ -65,35 +65,35 @@ PollStream allows admins to create real-time polls and users to vote and see liv
 
 ```mermaid
 flowchart TB
-    Client([Browser / Client])
+    Client(["Browser / Client"])
+    GW["NGINX Gateway Fabric :80"]
+
+    Client -->|HTTP / WebSocket| GW
 
     subgraph NS["polling-platform namespace"]
-        GW["NGINX Gateway Fabric<br/>:80"]
-        FE["frontend<br/>:80"]
-        AUTH["auth-service<br/>:8081"]
-        POLL["poll-service<br/>:8082"]
-        VOTE["vote-service<br/>:8083"]
-        ANALYTICS["analytics-service<br/>:8084"]
-        RT["realtime-service<br/>:3001"]
-        REDIS[("Redis<br/>:6379")]
-        PG[("PostgreSQL<br/>:5432")]
+        FE["frontend :80"]
+        AUTH["auth-service :8081"]
+        POLL["poll-service :8082"]
+        VOTE["vote-service :8083"]
+        ANALYTICS["analytics-service :8084"]
+        RT["realtime-service :3001"]
+        REDIS[("Redis :6379")]
+        PG[("PostgreSQL :5432")]
     end
 
-    Client -- HTTP / WS --> GW
-    GW -- "/" --> FE
-    GW -- "/api/auth" --> AUTH
-    GW -- "/api/polls" --> POLL
-    GW -- "/api/votes" --> VOTE
-    GW -- "/api/analytics" --> ANALYTICS
-    GW -- "/socket.io" --> RT
+    GW -->|/| FE
+    GW -->|/api/auth| AUTH
+    GW -->|/api/polls| POLL
+    GW -->|/api/votes| VOTE
+    GW -->|/api/analytics| ANALYTICS
+    GW -->|/socket.io| RT
 
     AUTH --> PG
     POLL --> PG
     VOTE --> PG
     ANALYTICS --> PG
-    VOTE -- "publish vote events" --> REDIS
-    RT -- "subscribe vote events" --> REDIS
-    RT -- "WebSocket live updates" --> Client
+    VOTE -->|publish| REDIS
+    REDIS -->|subscribe| RT
 ```
 
 ### Service Communication
@@ -153,31 +153,24 @@ All endpoints are exposed through the Gateway at `http://4.187.142.0`.
 
 ```mermaid
 flowchart LR
-    subgraph AZURE["☁️ Azure Cloud — Region: Central India"]
-        direction TB
-
-        subgraph DEVOPS["Azure DevOps (Subscription 1)"]
-            REPO["Azure Repos<br/>GitOps source of truth"]
-            PIPE["Pipelines<br/>6 service CI pipelines"]
-            AGENT["Self-hosted Agent<br/>azureagent"]
-        end
-
-        subgraph SUB2["Subscription 2: real_time_polling_platform"]
-            ACR["Azure Container Registry<br/>chiradev.azurecr.io<br/>6 image repositories"]
-
-            subgraph AKS["Azure Kubernetes Service (AKS) 1.34.7<br/>Standard_D2s_v6 × 2 nodes (Zone 1 + 2)"]
-                NS1["polling-platform<br/>(app workloads)"]
-                NS2["argocd<br/>(GitOps controller)"]
-                NS3["nginx-gateway<br/>(API gateway)"]
-            end
-        end
+    subgraph DEVOPS["Azure DevOps — Subscription 1"]
+        PIPE["Pipelines<br/>6 service CI pipelines"]
+        REPO["Azure Repos<br/>GitOps source of truth"]
     end
 
-    PIPE -- "build & push images" --> ACR
-    PIPE -- "update manifest" --> REPO
-    ACR -- "pull images" --> AKS
-    REPO -- "ArgoCD sync" --> NS2
-    NS2 -- "deploy" --> NS1
+    subgraph SUB2["Subscription 2 — Central India"]
+        ACR["Azure Container Registry<br/>chiradev.azurecr.io"]
+        ARGO["argocd namespace<br/>GitOps controller"]
+        APP["polling-platform namespace<br/>app workloads"]
+        GWNS["nginx-gateway namespace<br/>API gateway"]
+    end
+
+    PIPE -->|"build & push images"| ACR
+    PIPE -->|"update manifest"| REPO
+    REPO -->|"sync"| ARGO
+    ACR -->|"pull images"| APP
+    ARGO -->|"deploy"| APP
+    APP --> GWNS
 ```
 
 ---
@@ -206,18 +199,18 @@ flowchart TB
 ### WebSocket (Real-Time) Flow
 
 ```mermaid
-flowchart TB
-    USER([User Browser])
-    GW["NGINX Gateway<br/>Session Affinity: ClientIP (sticky)"]
+flowchart LR
+    USER(["User Browser"])
+    GW["NGINX Gateway<br/>sticky sessions (ClientIP)"]
     RT["realtime-service<br/>Socket.IO server"]
-    REDIS[("Redis<br/>vote-events channel")]
+    REDIS[("Redis<br/>vote-events")]
     VOTE["vote-service"]
 
-    USER -- "WebSocket Upgrade<br/>ws://4.187.142.0/socket.io" --> GW
+    USER -->|"WebSocket /socket.io"| GW
     GW --> RT
-    RT -- "SUBSCRIBE" --> REDIS
-    VOTE -- "PUBLISH on every vote" --> REDIS
-    RT -- "live update broadcast" --> USER
+    VOTE -->|PUBLISH| REDIS
+    REDIS -->|SUBSCRIBE| RT
+    RT -->|"live updates"| USER
 ```
 
 ### Network CIDRs

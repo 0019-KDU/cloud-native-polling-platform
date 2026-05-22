@@ -1,0 +1,12 @@
+flowchart LR
+    USER(["User Browser"])
+    GW["NGINX Gateway<br/>sticky sessions (ClientIP)"]
+    RT["realtime-service<br/>Socket.IO server"]
+    REDIS[("Redis<br/>vote-events")]
+    VOTE["vote-service"]
+
+    USER -->|"WebSocket /socket.io"| GW
+    GW --> RT
+    VOTE -->|PUBLISH| REDIS
+    REDIS -->|SUBSCRIBE| RT
+    RT -->|"live updates"| USER

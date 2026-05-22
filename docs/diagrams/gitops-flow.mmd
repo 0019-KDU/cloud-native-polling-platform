@@ -1,0 +1,9 @@
+flowchart TB
+    DEV(["Developer pushes code change"])
+    CI["Azure DevOps Pipeline (CI)<br/>Build → Push to ACR → Update k8s YAML → Push to Azure Repo"]
+    POLL["ArgoCD polls Azure Repo every 3 min<br/>Detects new image tag in k8s/services/*.yaml"]
+    SYNC["ArgoCD syncs k8s/ folder to AKS cluster<br/>(polling-platform namespace)"]
+    ROLL["Kubernetes rolling update — zero downtime"]
+    LIVE(["New version live at http://4.187.142.0"])
+
+    DEV --> CI --> POLL --> SYNC --> ROLL --> LIVE
